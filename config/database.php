@@ -17,11 +17,11 @@
 
 
         if($con){
-            echo "connection success";
+            return true;
         }
 
         else{
-            echo"failed";
+            return false;
         }
 
     }
