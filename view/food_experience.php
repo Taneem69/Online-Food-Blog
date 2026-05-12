@@ -1,10 +1,10 @@
 <?php
 
-session_start();
+    session_start();
 
-require_once('../model/foodExperienceModel.php');
+    require_once('../model/foodExperienceModel.php');
 
-$posts = getAllFoodPosts();
+    $posts = getAllFoodPosts();
 
 ?>
 
@@ -47,73 +47,77 @@ $posts = getAllFoodPosts();
 
             <div class="post">
 
-            <h2><?= htmlspecialchars($post['title']) ?></h2>
+                <h2><?= htmlspecialchars($post['title']) ?></h2>
 
-            <p>
-                <?= nl2br(htmlspecialchars($post['content'])) ?>
-            </p>
+                <p>
+                    <?= nl2br(htmlspecialchars($post['content'])) ?>
+                </p>
 
-            <p>
+                <p>
 
-                <b>Author:</b>
-                <?= htmlspecialchars($post['name']) ?>
+                    <b>Author:</b>
+                    <?= htmlspecialchars($post['name']) ?>
 
-                |
+                    |
 
-                <b>Type:</b>
-                <?= htmlspecialchars($post['post_type']) ?>
+                    <b>Type:</b>
+                    <p>
+                        <b>Date:</b>
+                        <?= $post['created_at'] ?>
+                    </p>
+                    <?= htmlspecialchars($post['post_type']) ?>
 
-            </p>
-
-            <?php
-
-            if(isset($_SESSION['user_id']) && ($_SESSION['user_id']==$post['user_id'] || $_SESSION['role']=='admin')){ ?>
-
-            <a href="edit_post.php?id=<?= $post['id'] ?>">Edit</a>|
-
-            <a href="../controller/deletePost.php?id=<?= $post['id'] ?>">Delete</a>
-
-            <?php } ?>
-
-            <hr>
-
-            <h3>Comments</h3>
-
-            <?php
-
-            $comments = getCommentsByPost($post['id']);
-
-            foreach($comments as $comment){
-
-            ?>
-
-            <p>
-
-                <b><?= htmlspecialchars($comment['name']) ?></b>:<?= htmlspecialchars($comment['comment']) ?>
+                </p>
 
                 <?php
 
-                if(isset($_SESSION['user_id']) && ($_SESSION['user_id']==$comment['user_id'] || $_SESSION['role']=='admin')){?>
+                    if(isset($_SESSION['user_id']) && ($_SESSION['user_id']==$post['user_id'] || $_SESSION['role']=='admin')){ ?>
 
-                <a href="#" onclick="deleteComment(<?= $comment['id'] ?>)">Delete</a>
+                    <a href="edit_post.php?id=<?= $post['id'] ?>">Edit</a>|
+
+                    <a href="#" onclick="deletePost(<?= $post['id'] ?>)"> Delete </a>
 
                 <?php } ?>
 
-            </p>
+                <hr>
 
-            <?php } ?>
+                <h3>Comments</h3>
 
-            <?php if(isset($_SESSION['user_id'])){ ?>
+                <?php
 
-            <textarea id="comment<?= $post['id'] ?>"></textarea>
+                    $comments = getCommentsByPost($post['id']);
 
-            <br><br>
+                    foreach($comments as $comment){
 
-            <button onclick="addComment(<?= $post['id'] ?>)">Comment</button>
+                ?>
 
-            <?php } ?>
+                <p>
 
-        </div>
+                    <b><?= htmlspecialchars($comment['name']) ?></b>:<?= htmlspecialchars($comment['comment']) ?>
+
+                    <?php
+
+                    if(isset($_SESSION['user_id']) && ($_SESSION['user_id']==$comment['user_id'] || $_SESSION['role']=='admin')){?>
+
+                    <a href="#" onclick="deleteComment(<?= $comment['id'] ?>)">Delete</a>
+
+                    <?php } ?>
+
+                </p>
+
+                <?php } ?>
+
+                <?php if(isset($_SESSION['user_id'])){ ?>
+
+                    <textarea id="comment<?= $post['id'] ?>"></textarea>
+    
+                    <br><br>
+    
+                    <button onclick="addComment(<?= $post['id'] ?>)">Comment</button>
+
+                <?php } ?>
+
+            </div>
 
         <?php } ?>
 
