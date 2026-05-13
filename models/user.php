@@ -111,6 +111,17 @@ class User
         ]);
     }
 
+    public static function clearRememberToken(PDO $db, int $id): bool
+    {
+        $stmt = $db->prepare(
+            "UPDATE users
+             SET remember_token = NULL
+             WHERE id = ?"
+        );
+
+        return $stmt->execute([$id]);
+    }
+
     public static function getAllMembers(PDO $db): array
     {
         $stmt = $db->prepare(

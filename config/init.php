@@ -52,6 +52,22 @@ function redirect(string $url): void
     exit;
 }
 
+function requireLogin(): void
+{
+    if (!isLoggedIn()) {
+        setFlash('flash_error', 'Please login first.');
+        redirect('index.php?page=login');
+    }
+}
+
+function requireAdmin(): void
+{
+    if (!isAdmin()) {
+        setFlash('flash_error', 'Admin access required.');
+        redirect('index.php?page=home');
+    }
+}
+
 function csrfToken(): string
 {
     if (empty($_SESSION['csrf_token'])) {
@@ -68,6 +84,49 @@ function verifyCsrf(): void
         empty($_SESSION['csrf_token']) ||
         !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
     ) {
-        die('Invalid form request.');
+        setFlash('flash_error', 'Invalid form request. Please try again.');
+        redirect('index.php?page=home');
     }
 }
+
+function checkRememberLogin(): void
+{
+    if (isLoggedIn()) {
+        return;
+    }
+
+    if (empty($_COOKIE['remember_me'])) {
+        return;
+    }
+
+    $parts = explode(':', $_COOKIE['remember_me']);
+
+    if (count($parts) !== 2) {
+        return;
+    }
+
+    $userId = (int)$parts[0];
+    $token = $parts[1];
+    $tokenHash = hash('sha256', $token);
+
+    $stmt = getDB()->prepare(
+        "SELECT id, name, role, remember_token 
+         FROM users 
+         WHERE id = ?"
+    );
+
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+
+    if (
+        $user &&
+        !empty($user['remember_token']) &&
+        hash_equals($user['remember_token'], $tokenHash)
+    ) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['name'] = $user['name'];
+        $_SESSION['role'] = $user['role'];
+    }
+}
+
+checkRememberLogin();
