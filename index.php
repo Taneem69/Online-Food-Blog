@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/models/user.php';
 require_once __DIR__ . '/config/init.php';
 require_once __DIR__ . '/models/RestaurantModel.php';
 require_once __DIR__ . '/models/MenuItemModel.php';
@@ -127,12 +128,114 @@ switch ($page) {
         break;
 
     case 'login':
-        require __DIR__ . '/view/partials/login_stub.php';
-        break;
+    $pageTitle = 'Login';
 
+    $errors = [];
+    $old = [
+        'email' => ''
+    ];
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verifyCsrf();
+
+        $old['email'] = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $remember = isset($_POST['remember']);
+
+        if (!filter_var($old['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Valid email is required.';
+        }
+
+        if ($password === '') {
+            $errors['password'] = 'Password is required.';
+        }
+
+        if (empty($errors)) {
+            $user = User::findByEmail(getDB(), $old['email']);
+
+            if ($user && password_verify($password, $user['password_hash'])) {
+                session_regenerate_id(true);
+
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['name'] = $user['name'];
+                $_SESSION['role'] = $user['role'];
+
+                if ($remember) {
+                    $token = bin2hex(random_bytes(32));
+                    $tokenHash = hash('sha256', $token);
+
+                    User::setRememberToken(getDB(), (int)$user['id'], $tokenHash);
+
+                    setcookie('remember_me', $user['id'] . ':' . $token, [
+                        'expires' => time() + (30 * 24 * 60 * 60),
+                        'path' => '/',
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]);
+                }
+
+                setFlash('flash_success', 'Login successful.');
+                redirect('index.php?page=home');
+            }
+
+            $errors['login'] = 'Invalid email or password.';
+        }
+    }
+
+    require __DIR__ . '/view/auth/login.php';
+    break;
     case 'register':
-        require __DIR__ . '/view/partials/register_stub.php';
-        break;
+    $pageTitle = 'Register';
+
+    $errors = [];
+    $old = [
+        'name' => '',
+        'email' => '',
+        'role' => 'member'
+    ];
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verifyCsrf();
+
+        $old['name'] = trim($_POST['name'] ?? '');
+        $old['email'] = trim($_POST['email'] ?? '');
+        $old['role'] = $_POST['role'] ?? 'member';
+
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($old['name'] === '') {
+            $errors['name'] = 'Name is required.';
+        }
+
+        if (!filter_var($old['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Valid email is required.';
+        } elseif (User::emailExists(getDB(), $old['email'])) {
+            $errors['email'] = 'This email is already registered.';
+        }
+
+        if (strlen($password) < 8) {
+            $errors['password'] = 'Password must be at least 8 characters.';
+        }
+
+        if ($password !== $confirmPassword) {
+            $errors['confirm_password'] = 'Passwords do not match.';
+        }
+
+        if (!in_array($old['role'], ['admin', 'member'], true)) {
+            $errors['role'] = 'Invalid role selected.';
+        }
+
+        if (empty($errors)) {
+            User::create(getDB(), $old['name'], $old['email'], $password, $old['role']);
+
+            setFlash('flash_success', 'Registration successful. Please login.');
+            redirect('index.php?page=login');
+        }
+    }
+
+    require __DIR__ . '/view/auth/register.php';
+    break;
 
     case 'logout':
         $_SESSION = [];
