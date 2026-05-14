@@ -21,6 +21,7 @@
 <body>
 
     <div class="navbar">
+        
 
         <a href="../index.php">Home</a>
 

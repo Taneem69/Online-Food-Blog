@@ -1,6 +1,5 @@
 function addComment(postId){
-    let comment =
-    document.getElementById('comment'+postId).value;
+    let comment =document.getElementById('comment'+postId).value;
     if(comment.trim()==""){
         alert("Comment Required");
         return;
@@ -11,8 +10,7 @@ function addComment(postId){
     xhttp.onreadystatechange = function(){
         if(this.readyState == 4 &&
         this.status == 200){
-            let data =
-            JSON.parse(this.responseText);
+            let data =JSON.parse(this.responseText);
             if(data.status=="success"){
                 location.reload();
             }
