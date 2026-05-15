@@ -39,8 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmBtn = document.getElementById('confirmDeleteBtn');
   if (confirmBtn) {
     confirmBtn.addEventListener('click', () => {
+      const callback = pendingDeleteCallback;
       closeModal();
-      if (typeof pendingDeleteCallback === 'function') pendingDeleteCallback();
+      if (typeof callback === 'function') callback();
     });
   }
 
@@ -95,6 +96,7 @@ function deleteMenuItem(id, name) {
         const fd = new FormData();
         fd.append('id', id);
         fd.append('csrf_token', getCsrf());
+        fd.append('ajax', '1');
 
         const res = await fetch('index.php?page=menu_item_delete', { method: 'POST', body: fd });
         const data = await res.json();
@@ -130,6 +132,7 @@ function adminDeleteReview(id) {
         const fd = new FormData();
         fd.append('id', id);
         fd.append('csrf_token', getCsrf());
+        fd.append('ajax', '1');
 
         const res = await fetch('index.php?page=delete_review', { method: 'POST', body: fd });
         const data = await res.json();
@@ -156,11 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
       clearErrors(restaurantForm);
       let valid = true;
 
-      valid = requireField(restaurantForm, 'name',             'Name is required.')       && valid;
-      valid = requireField(restaurantForm, 'location',         'Location is required.')   && valid;
-      valid = requireField(restaurantForm, 'area',             'Area is required.')        && valid;
+      valid = requireField(restaurantForm, 'name', 'Name is required.') && valid;
+      valid = requireField(restaurantForm, 'location', 'Location is required.') && valid;
+      valid = requireField(restaurantForm, 'area', 'Area is required.') && valid;
       valid = requireField(restaurantForm, 'short_background', 'Background is required.') && valid;
-      valid = requireField(restaurantForm, 'goals',            'Goals are required.')     && valid;
+      valid = requireField(restaurantForm, 'goals', 'Goals are required.') && valid;
 
       if (!valid) e.preventDefault();
     });
@@ -173,11 +176,11 @@ document.addEventListener('DOMContentLoaded', () => {
       clearErrors(menuItemForm);
       let valid = true;
 
-      valid = requireField(menuItemForm, 'name',        'Item name is required.')    && valid;
+      valid = requireField(menuItemForm, 'name', 'Item name is required.') && valid;
       valid = requireField(menuItemForm, 'description', 'Description is required.') && valid;
 
       const priceEl = menuItemForm.querySelector('[name=price]');
-      const price   = parseFloat(priceEl?.value);
+      const price = parseFloat(priceEl?.value);
       if (!priceEl || isNaN(price) || price <= 0) {
         showFieldError(priceEl, 'Price must be a positive number.');
         valid = false;
@@ -200,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Live image preview
-    const imgInput   = menuItemForm.querySelector('[name=image]');
+    const imgInput = menuItemForm.querySelector('[name=image]');
     const livePreview = document.getElementById('imgLivePreview');
     if (imgInput && livePreview) {
       imgInput.addEventListener('change', () => {
