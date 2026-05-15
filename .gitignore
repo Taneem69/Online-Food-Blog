@@ -1,0 +1,4 @@
+public/uploads/profiles/*
+public/uploads/menu/*
+!public/uploads/profiles/.gitkeep
+!public/uploads/menu/.gitkeep
