@@ -24,110 +24,81 @@
         
 
         <a href="../index.php">Home</a>
+        <a href="food_experience.php">Food Experience</a>
 
-        <?php if(isset($_SESSION['user_id'])){ ?>
-
-        <a href="add_post.php">Add Post</a>
-
-        <?php } ?>
-
-        <?php if(isset($_SESSION['role']) && $_SESSION['role']=='admin'){ ?>
-
-            <a href="admin_panel.php">Admin Panel</a>
-
-        <?php } ?>
-
-    </div>
-
-    <div class="container">
-
-        <h1>Food Experience Blog</h1>
-
-        <?php foreach($posts as $post){ ?>
-
-    <div class="post">
-
-    <h2>
-        <?= htmlspecialchars($post['title']) ?>
-    </h2>
-
-    <p>
-        <?= nl2br(htmlspecialchars($post['content'])) ?>
-    </p>
-
-    <p>
-
-        <b>Author:</b>
-        <?= htmlspecialchars($post['name']) ?> |
-
-        <b>Type:</b>
-        <p>
-            <b>Date:</b>
-            <?= $post['created_at'] ?>
-        </p>
-        <?= htmlspecialchars($post['post_type']) ?>
-
-    </p>
-
-    <?php
-
-        if(isset($_SESSION['user_id']) && ($_SESSION['user_id']==$post['user_id'] || $_SESSION['role']=='admin' ) ){
-
-    ?>
-
-    <a href="edit_post.php?id=<?= $post['id'] ?>">Edit</a>|
-
-    <a href="#" onclick="deletePost(<?= $post['id'] ?>)"> Delete </a>
-
-    <?php } ?>
-
-    <hr>
-
-    <h3>Comments</h3>
-
-    <?php
-
-        $comments = getCommentsByPost($post['id']);
-
-        foreach($comments as $comment){
-
-    ?>
-
-    <p>
-
-        <b><?= htmlspecialchars($comment['name']) ?></b>
-
-        :<?= htmlspecialchars($comment['comment']) ?>
-
-        <?php
-
-            if(isset($_SESSION['user_id']) && ($_SESSION['user_id']==$comment['user_id'] || $_SESSION['role']=='admin' ) ){
-
-        ?>
-
-        <a href="#" onclick="deleteComment(<?= $comment['id'] ?>)"> Delete </a>
-
-        <?php } ?>
-
-    </p>
-
-    <?php } ?>
-
-    <?php if(isset($_SESSION['user_id'])){ ?>
-
-    <textarea id="comment<?= $post['id'] ?>"></textarea>
-
-    <br><br>
-
-    <button onclick="addComment(<?= $post['id'] ?>)">Comment</button>
-
-    <?php } ?>
+        <?php if (isset($_SESSION['user_id'])): ?>
+            <a href="add_post.php">Add Post</a>
+            <?php if ($_SESSION['role'] == 'admin'): ?>
+                <a href="admin_panel.php">Admin Panel</a>
+            <?php endif; ?>
+            <a href="profile.php">Profile</a>
+            <a href="logout.php">Logout</a>
+        <?php else: ?>
+            <a href="login.php">Login</a>
+            <a href="register.php">Register</a>
+        <?php endif; ?>
 
     </div>
 
-        <?php } ?>
+<div class="container">
 
-    </div>
+    <h1>Food Experience Blog</h1>
+
+    <?php if (empty($posts)): ?>
+        <p>No posts yet. Be the first to share!</p>
+    <?php endif; ?>
+
+    <?php foreach ($posts as $post): ?>
+
+        <div class="post" id="post-card-<?php echo $post['id']; ?>">
+
+            <h2><?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?></h2>
+
+            <p><?php echo nl2br(htmlspecialchars($post['content'], ENT_QUOTES, 'UTF-8')); ?></p>
+
+            <!-- ── Fixed: no more nested <p> tags ── -->
+            <p>
+                <b>Author:</b> <?php echo htmlspecialchars($post['name'], ENT_QUOTES, 'UTF-8'); ?> |
+                <b>Type:</b> <?php echo htmlspecialchars($post['post_type'], ENT_QUOTES, 'UTF-8'); ?> |
+                <b>Date:</b> <?php echo $post['created_at']; ?>
+            </p>
+
+            <?php if (isset($_SESSION['user_id']) && ($post['user_id'] == $_SESSION['user_id'] || $_SESSION['role'] == 'admin')): ?>
+                <a href="edit_post.php?id=<?php echo $post['id']; ?>">Edit</a> |
+                <a href="#" onclick="deletePost(<?php echo $post['id']; ?>)">Delete</a>
+            <?php endif; ?>
+
+            <hr>
+
+            <h3>Comments</h3>
+
+            <?php
+                $comments = getCommentsByPost($post['id']);
+                foreach ($comments as $comment):
+            ?>
+
+                <p>
+                    <b><?php echo htmlspecialchars($comment['name'], ENT_QUOTES, 'UTF-8'); ?></b>:
+                    <?php echo htmlspecialchars($comment['comment'], ENT_QUOTES, 'UTF-8'); ?>
+
+                    <?php if (isset($_SESSION['user_id']) && ($comment['user_id'] == $_SESSION['user_id'] || $_SESSION['role'] == 'admin')): ?>
+                        <a href="#" onclick="deleteComment(<?php echo $comment['id']; ?>)">Delete</a>
+                    <?php endif; ?>
+                </p>
+
+            <?php endforeach; ?>
+
+            <?php if (isset($_SESSION['user_id'])): ?>
+                <textarea id="comment<?php echo $post['id']; ?>" placeholder="Write a comment..."></textarea>
+                <br><br>
+                <button onclick="addComment(<?php echo $post['id']; ?>)">Comment</button>
+            <?php endif; ?>
+
+        </div>
+
+    <?php endforeach; ?>
+
+</div>
 
     <script src="../asset/food_experience.js"></script>
 
