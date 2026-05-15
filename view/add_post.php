@@ -2,20 +2,15 @@
 
     session_start();
 
-    if(!isset($_SESSION['user_id'])){
+    if (!isset($_SESSION['user_id'])) {
         header("location: login.php");
         exit();
     }
 
-    require_once('../config/database.php');
-        global $conn;
+    require_once('../model/foodExperienceModel.php');
 
-
-    $restaurants = mysqli_query($conn,
-    "SELECT * FROM restaurants");
-
-    $menuItems = mysqli_query($conn,
-    "SELECT * FROM menu_items");
+    $restaurants = getAllRestaurantsForForm();
+    $menu_items  = getAllMenuItemsForForm();
 
 ?>
 
@@ -84,18 +79,26 @@
 
     <script>
 
-        function validate()
-        {
-            let title = document.getElementById('title').value;
-            let content = document.getElementById('content').value;
-
-            if(title.trim()=="" || content.trim()==""){
-                document.getElementById('msg').innerHTML =
-                "All fields required";
-
+        function validatePost() {
+            let title   = document.getElementById('title').value.trim();
+            let content = document.getElementById('content').value.trim();
+            let msg     = document.getElementById('msg');
+    
+            if (title === "") {
+                msg.innerHTML = "Title is required.";
                 return false;
             }
-
+    
+            if (content === "") {
+                msg.innerHTML = "Content is required.";
+                return false;
+            }
+    
+            if (content.length < 20) {
+                msg.innerHTML = "Content must be at least 20 characters.";
+                return false;
+            }
+    
             return true;
         }
 
