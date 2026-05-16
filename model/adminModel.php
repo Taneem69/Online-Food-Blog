@@ -20,13 +20,10 @@
         return $users;
     }
     
-    function deleteMember($id){
+    function deleteMember($id) {
         global $conn;
-    
-        $stmt = mysqli_prepare($conn,"DELETE FROM users WHERE id=?");
-    
+        $stmt = mysqli_prepare($conn, "DELETE FROM users WHERE id=? AND role='member'");
         mysqli_stmt_bind_param($stmt, "i", $id);
-    
         return mysqli_stmt_execute($stmt);
     }
     

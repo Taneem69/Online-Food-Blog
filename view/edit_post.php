@@ -34,11 +34,11 @@
 
         <input type="hidden" name="id" value="<?= $post['id'] ?>">
 
-        <input type="text" name="title" id="title" value="<?= htmlspecialchars($post['title']) ?>">
+        <input type="text" name="title" id="title" value="<?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?>">
 
         <br><br>
 
-        <textarea name="content" id="content"><?= htmlspecialchars($post['content']) ?></textarea>
+        <textarea name="content" id="content"><?php echo htmlspecialchars($post['content'], ENT_QUOTES, 'UTF-8'); ?></textarea>
 
         <br><br>
 
