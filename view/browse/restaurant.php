@@ -3,30 +3,29 @@ session_start();
 require_once '../../config/database.php';
 /** @var \PDO $pdo */
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+
 if ($id <= 0) {
-    die('Invalid menu item.');
+    die('Invalid restaurant.');
 }
-
-$itemStmt = $pdo->prepare("
-    SELECT
-        mi.id,
-        mi.name,
-        mi.description,
-        mi.price,
-        mi.image_path,
-        r.id   AS restaurant_id,
-        r.name AS restaurant_name
-    FROM menu_items mi
-    JOIN restaurants r ON mi.restaurant_id = r.id
-    WHERE mi.id = ?
+$restaurantStmt = $pdo->prepare("
+    SELECT id, name, location, area, short_background, goals
+    FROM restaurants
+    WHERE id = ?
 ");
-$itemStmt->execute([$id]);
-$item = $itemStmt->fetch();
+$restaurantStmt->execute([$id]);
+$restaurant = $restaurantStmt->fetch();
 
-if (!$item) {
-    die('Menu item not found.');
+if (!$restaurant) {
+    die('Restaurant not found.');
 }
-
+$menuStmt = $pdo->prepare("
+    SELECT id, name, description, price, image_path
+    FROM menu_items
+    WHERE restaurant_id = ?
+    ORDER BY name ASC
+");
+$menuStmt->execute([$id]);
+$menuItems = $menuStmt->fetchAll();
 $reviewStmt = $pdo->prepare("
     SELECT
         r.id,
@@ -36,20 +35,39 @@ $reviewStmt = $pdo->prepare("
         u.name AS reviewer_name
     FROM reviews r
     JOIN users u ON r.user_id = u.id
-    WHERE r.menu_item_id = ?
+    WHERE r.menu_item_id IS NULL
+    AND r.user_id IN (
+        SELECT user_id FROM reviews
+        WHERE menu_item_id IS NULL
+    )
     ORDER BY r.created_at DESC
 ");
-$reviewStmt->execute([$id]);
-$reviews = $reviewStmt->fetchAll();
-$isMember = isset($_SESSION['user_id']) && $_SESSION['role'] === 'member';
-$isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
+$reviewStmt = $pdo->prepare("
+    SELECT
+        r.id,
+        r.comment,
+        r.created_at,
+        r.user_id,
+        u.name AS reviewer_name
+    FROM reviews r
+    JOIN users u ON r.user_id = u.id
+    WHERE r.menu_item_id IS NULL
+    ORDER BY r.created_at DESC
+");
+$reviewStmt->execute();
+$restaurantReviews = $reviewStmt->fetchAll();
+
+// Session helpers
+$isMember  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'member';
+$isAdmin   = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
+$isLoggedIn = isset($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($item['name']) ?> — Online Food Blog</title>
+    <title><?= htmlspecialchars($restaurant['name']) ?> — Online Food Blog</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -82,56 +100,158 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
             color: #888;
             border-bottom: 1px solid #eee;
         }
-        .breadcrumb a { color: #c0392b; text-decoration: none; }
+        .breadcrumb a {
+            color: #c0392b;
+            text-decoration: none;
+        }
         .breadcrumb a:hover { text-decoration: underline; }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 30px auto;
             padding: 0 20px;
         }
 
-        .item-card {
+        .restaurant-card {
             background: white;
             border-radius: 12px;
-            overflow: hidden;
+            padding: 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
-        .item-image {
-            width: 100%;
-            height: 280px;
-            object-fit: cover;
-            background: #eee;
+        .restaurant-header {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
         }
-        .item-body { padding: 25px; }
-        .item-body h1 {
-            font-size: 26px;
+        .restaurant-header h1 {
+            font-size: 28px;
+            color: #222;
+        }
+        .restaurant-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .badge {
+            background: #fdecea;
+            color: #c0392b;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        .restaurant-section {
+            margin-bottom: 20px;
+        }
+        .restaurant-section h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #aaa;
             margin-bottom: 8px;
         }
-        .item-restaurant {
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 15px;
-        }
-        .item-restaurant a {
-            color: #c0392b;
-            text-decoration: none;
-        }
-        .item-price {
-            font-size: 22px;
-            font-weight: bold;
-            color: #c0392b;
-            margin-bottom: 15px;
-        }
-        .item-description {
+        .restaurant-section p {
             font-size: 15px;
             line-height: 1.7;
             color: #555;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #c0392b;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #c0392b;
+        }
+
+        .menu-section {
+            margin-bottom: 30px;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .menu-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .menu-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.12);
+        }
+        .menu-card-image {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: #ddd;
+        }
+        .menu-card-image img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+        }
+        .menu-card-body {
+            padding: 15px;
+        }
+        .menu-card-body h3 {
+            font-size: 16px;
+            margin-bottom: 6px;
+            color: #222;
+        }
+        .menu-card-desc {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-clamp: 2;
+            overflow: hidden;
+        }
+        .menu-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .menu-price {
+            font-size: 16px;
+            font-weight: bold;
+            color: #c0392b;
+        }
+        .btn-view {
+            background: #c0392b;
+            color: white;
+            padding: 6px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .btn-view:hover { background: #a93226; }
+
+        .no-items {
+            text-align: center;
+            padding: 40px;
+            color: #aaa;
+            background: white;
+            border-radius: 10px;
         }
 
         .reviews-section {
@@ -139,13 +259,7 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
             border-radius: 12px;
             padding: 25px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .reviews-section h2 {
-            font-size: 20px;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #c0392b;
-            color: #c0392b;
+            margin-bottom: 30px;
         }
 
         .review-form {
@@ -158,7 +272,6 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
         .review-form h3 {
             font-size: 16px;
             margin-bottom: 15px;
-            color: #333;
         }
         .form-group {
             margin-bottom: 12px;
@@ -259,7 +372,7 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
-            margin-top: 5px;
+            margin-top: 8px;
         }
         .btn-delete:hover {
             background: #e74c3c;
@@ -295,7 +408,7 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
     <strong>🍽 Online Food Blog</strong>
     <div>
         <a href="/ONLINE-FOOD-BLOG/view/browse/index.php">Browse</a>
-        <?php if (isset($_SESSION['user_id'])): ?>
+        <?php if ($isLoggedIn): ?>
             <a href="/ONLINE-FOOD-BLOG/view/profile.php">Profile</a>
             <a href="/ONLINE-FOOD-BLOG/logout.php">Logout</a>
         <?php else: ?>
@@ -306,50 +419,95 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
 </nav>
 
 <div class="breadcrumb">
-    <a href="/ONLINE-FOOD-BLOG/view/browse/index.php">Browse</a> →
-    <a href="/ONLINE-FOOD-BLOG/view/browse/restaurant.php?id=<?= $item['restaurant_id'] ?>">
-        <?= htmlspecialchars($item['restaurant_name']) ?>
-    </a> →
-    <?= htmlspecialchars($item['name']) ?>
+    <a href="/ONLINE-FOOD-BLOG/view/browse/index.php">Browse</a>
+    → <?= htmlspecialchars($restaurant['name']) ?>
 </div>
 
 <div class="container">
-    <div class="item-card">
-        <div class="item-image">
-            <?php if (!empty($item['image_path'])): ?>
-                <img
-                    src="/ONLINE-FOOD-BLOG/public/<?= htmlspecialchars($item['image_path']) ?>"
-                    alt="<?= htmlspecialchars($item['name']) ?>"
-                    style="width:100%; height:280px; object-fit:cover;"
-                    onerror="this.parentElement.innerHTML='🍽'"
-                >
-            <?php else: ?>
-                🍽
-            <?php endif; ?>
+
+    <div class="restaurant-card">
+        <div class="restaurant-header">
+            <div>
+                <h1><?= htmlspecialchars($restaurant['name']) ?></h1>
+                <div class="restaurant-badges">
+                    <span class="badge">
+                        📍 <?= htmlspecialchars($restaurant['location']) ?>
+                    </span>
+                    <span class="badge">
+                        🏘 <?= htmlspecialchars($restaurant['area']) ?>
+                    </span>
+                </div>
+            </div>
         </div>
 
-        <div class="item-body">
-            <h1><?= htmlspecialchars($item['name']) ?></h1>
-            <div class="item-restaurant">
-                From:
-                <a href="/ONLINE-FOOD-BLOG/view/browse/restaurant.php?id=<?= $item['restaurant_id'] ?>">
-                    <?= htmlspecialchars($item['restaurant_name']) ?>
-                </a>
-            </div>
-            <div class="item-price">
-                ৳ <?= number_format($item['price'], 2) ?>
-            </div>
-            <p class="item-description">
-                <?= htmlspecialchars($item['description']) ?>
-            </p>
+        <div class="restaurant-section">
+            <h3>About</h3>
+            <p><?= htmlspecialchars($restaurant['short_background']) ?></p>
+        </div>
+
+        <div class="restaurant-section">
+            <h3>Our Goals</h3>
+            <p><?= htmlspecialchars($restaurant['goals']) ?></p>
         </div>
     </div>
 
+    <div class="menu-section">
+        <div class="section-title">
+            Menu Items (<?= count($menuItems) ?>)
+        </div>
+
+        <?php if (empty($menuItems)): ?>
+            <div class="no-items">
+                <p>No menu items available for this restaurant yet.</p>
+            </div>
+        <?php else: ?>
+            <div class="menu-grid">
+                <?php foreach ($menuItems as $item): ?>
+                    <div class="menu-card"
+                         onclick="window.location='/ONLINE-FOOD-BLOG/view/browse/menu_item.php?id=<?= $item['id'] ?>'">
+                        <!-- Item Image -->
+                        <div class="menu-card-image">
+                            <?php if (!empty($item['image_path'])): ?>
+                                <img
+                                    src="/ONLINE-FOOD-BLOG/public/<?= htmlspecialchars($item['image_path']) ?>"
+                                    alt="<?= htmlspecialchars($item['name']) ?>"
+                                    onerror="this.parentElement.innerHTML='🍽'"
+                                >
+                            <?php else: ?>
+                                🍽
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="menu-card-body">
+                            <h3><?= htmlspecialchars($item['name']) ?></h3>
+                            <p class="menu-card-desc">
+                                <?= htmlspecialchars($item['description']) ?>
+                            </p>
+                            <div class="menu-card-footer">
+                                <span class="menu-price">
+                                    ৳ <?= number_format($item['price'], 2) ?>
+                                </span>
+                                <a class="btn-view"
+                                   href="/ONLINE-FOOD-BLOG/view/browse/menu_item.php?id=<?= $item['id'] ?>"
+                                   onclick="event.stopPropagation()">
+                                    View Item
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <div class="reviews-section">
-        <h2>Reviews (<?= count($reviews) ?>)</h2>
+        <div class="section-title">
+            Restaurant Reviews (<?= count($restaurantReviews) ?>)
+        </div>
+
         <?php if ($isMember): ?>
             <div class="review-form">
-                <h3>Write a Review</h3>
+                <h3>Write a Review About This Restaurant</h3>
                 <div class="form-error" id="formError"></div>
                 <div class="form-group">
                     <label>Your Name</label>
@@ -361,18 +519,16 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
                                border-radius:6px; background:#f9f9f9; color:#888;"
                     >
                 </div>
-
                 <div class="form-group">
                     <label>Your Review</label>
                     <textarea
                         id="commentBox"
-                        placeholder="Share your experience with this dish..."
+                        placeholder="Share your overall experience at this restaurant..."
                         maxlength="1000"
                         oninput="updateCharCount()"
                     ></textarea>
                     <div class="char-count" id="charCount">0 / 1000</div>
                 </div>
-
                 <button
                     class="btn-submit"
                     id="submitBtn"
@@ -382,20 +538,22 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
                 </button>
             </div>
 
-        <?php elseif (!isset($_SESSION['user_id'])): ?>
+        <?php elseif (!$isLoggedIn): ?>
             <div class="login-prompt">
                 <a href="/ONLINE-FOOD-BLOG/view/auth/login.php">Login as a member</a>
-                to post a review.
+                to post a review about this restaurant.
             </div>
         <?php endif; ?>
+
         <div id="reviewList">
-            <?php if (empty($reviews)): ?>
+            <?php if (empty($restaurantReviews)): ?>
                 <div class="no-reviews" id="noReviews">
-                    No reviews yet. Be the first to review this item!
+                    No reviews yet. Be the first to review this restaurant!
                 </div>
             <?php else: ?>
-                <?php foreach ($reviews as $review): ?>
-                    <div class="review-item" id="review-<?= $review['id'] ?>">
+                <?php foreach ($restaurantReviews as $review): ?>
+                    <div class="review-item"
+                         id="review-<?= $review['id'] ?>">
                         <div class="review-header">
                             <div>
                                 <div class="reviewer-name">
@@ -411,7 +569,7 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
                         </p>
 
                         <?php if (
-                            isset($_SESSION['user_id']) &&
+                            $isLoggedIn &&
                             (int)$_SESSION['user_id'] === (int)$review['user_id']
                         ): ?>
                             <button
@@ -425,21 +583,23 @@ $isAdmin  = isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin';
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+
     </div>
+
 </div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const MENU_ITEM_ID = <?= $item['id'] ?>;
 function updateCharCount() {
-    const box      = document.getElementById('commentBox');
-    const counter  = document.getElementById('charCount');
-    const length   = box.value.length;
+    const box     = document.getElementById('commentBox');
+    const counter = document.getElementById('charCount');
+    const length  = box.value.length;
 
     counter.textContent = length + ' / 1000';
     counter.className   = 'char-count';
 
-    if (length > 900) counter.classList.add('danger');
+    if (length > 900)      counter.classList.add('danger');
     else if (length > 700) counter.classList.add('warning');
 }
 
@@ -450,13 +610,11 @@ function submitReview() {
     const comment    = commentBox.value.trim();
 
     errorBox.style.display = 'none';
-    errorBox.textContent   = '';
 
     if (comment === '') {
         showError('Please write a comment before submitting.');
         return;
     }
-
     if (comment.length > 1000) {
         showError('Comment is too long. Maximum 1000 characters.');
         return;
@@ -469,13 +627,12 @@ function submitReview() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            menu_item_id: MENU_ITEM_ID,
+            menu_item_id: null,
             comment:      comment
         })
     })
-    .then(function(response) { return response.json(); })
+    .then(function(res)  { return res.json(); })
     .then(function(data) {
-
         submitBtn.disabled    = false;
         submitBtn.textContent = 'Post Review';
 
@@ -484,31 +641,26 @@ function submitReview() {
             updateCharCount();
             addReviewToPage(data.review);
             showToast('Review posted successfully!');
-
         } else {
             showError(data.error || 'Failed to post review.');
         }
     })
-    .catch(function(error) {
+    .catch(function() {
         submitBtn.disabled    = false;
         submitBtn.textContent = 'Post Review';
         showError('Something went wrong. Please try again.');
-        console.error('Error:', error);
     });
 }
 
 function addReviewToPage(review) {
-    // Hide the "no reviews" message if it was showing
     const noReviews = document.getElementById('noReviews');
     if (noReviews) noReviews.style.display = 'none';
 
     const list = document.getElementById('reviewList');
+    const div  = document.createElement('div');
 
-    // Build the new review HTML
-    const div = document.createElement('div');
     div.className = 'review-item';
     div.id        = 'review-' + review.id;
-
     div.innerHTML = `
         <div class="review-header">
             <div>
@@ -525,57 +677,51 @@ function addReviewToPage(review) {
     `;
 
     list.insertBefore(div, list.firstChild);
-
     updateReviewCount(1);
 }
 
 function deleteReview(reviewId) {
-    if (!confirm('Are you sure you want to delete this review?')) {
-        return;
-    }
+    if (!confirm('Are you sure you want to delete this review?')) return;
 
     fetch(`/ONLINE-FOOD-BLOG/api/reviews/delete.php?id=${reviewId}`, {
         method: 'DELETE'
     })
-    .then(function(response) { return response.json(); })
+    .then(function(res)  { return res.json(); })
     .then(function(data) {
         if (data.success) {
-
-            const reviewEl = document.getElementById('review-' + reviewId);
-            if (reviewEl) reviewEl.remove();
+            const el = document.getElementById('review-' + reviewId);
+            if (el) el.remove();
 
             updateReviewCount(-1);
-
             showToast('Review deleted.');
 
             const list = document.getElementById('reviewList');
             if (list.children.length === 0) {
                 list.innerHTML =
                     '<div class="no-reviews" id="noReviews">' +
-                    'No reviews yet. Be the first to review this item!' +
+                    'No reviews yet. Be the first to review this restaurant!' +
                     '</div>';
             }
         } else {
-            showToast(data.error || 'Failed to delete review.', true);
+            showToast(data.error || 'Failed to delete.', true);
         }
     })
-    .catch(function(error) {
+    .catch(function() {
         showToast('Something went wrong. Please try again.', true);
-        console.error('Error:', error);
     });
 }
-
 function updateReviewCount(change) {
-    const heading = document.querySelector('.reviews-section h2');
-    if (!heading) return;
-
-    const match = heading.textContent.match(/\d+/);
-    if (match) {
-        const newCount    = Math.max(0, parseInt(match[0]) + change);
-        heading.textContent = `Reviews (${newCount})`;
-    }
+    const titles = document.querySelectorAll('.section-title');
+    titles.forEach(function(title) {
+        if (title.textContent.includes('Restaurant Reviews')) {
+            const match = title.textContent.match(/\d+/);
+            if (match) {
+                const newCount      = Math.max(0, parseInt(match[0]) + change);
+                title.textContent   = `Restaurant Reviews (${newCount})`;
+            }
+        }
+    });
 }
-
 function showError(message) {
     const errorBox         = document.getElementById('formError');
     errorBox.textContent   = message;
@@ -583,15 +729,11 @@ function showError(message) {
 }
 
 function showToast(message, isError = false) {
-    const toast       = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className   = isError ? 'toast error' : 'toast';
+    const toast         = document.getElementById('toast');
+    toast.textContent   = message;
+    toast.className     = isError ? 'toast error' : 'toast';
     toast.style.display = 'block';
-
-    // Hide after 3 seconds
-    setTimeout(function() {
-        toast.style.display = 'none';
-    }, 3000);
+    setTimeout(function() { toast.style.display = 'none'; }, 3000);
 }
 function escapeHtml(str) {
     if (!str) return '';

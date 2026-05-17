@@ -1,8 +1,9 @@
 <?php
+
 header('Content-Type: application/json');
 session_start();
 require_once '../../config/database.php';
-/** @var \PDO $pdo */
+require_once '../../models/ReviewModel.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -54,41 +55,10 @@ if (strlen($comment) > 1000) {
     exit;
 }
 
-if ($menu_item_id !== null) {
-    $checkStmt = $pdo->prepare(
-        "SELECT id FROM menu_items WHERE id = ?"
-    );
-    $checkStmt->execute([$menu_item_id]);
-
-    if (!$checkStmt->fetch()) {
-        echo json_encode([
-            'success' => false,
-            'error'   => 'Menu item does not exist.'
-        ]);
-        exit;
-    }
-}
-
 try {
-    $stmt = $pdo->prepare("
-        INSERT INTO reviews (menu_item_id, user_id, comment, created_at)
-        VALUES (?, ?, ?, NOW())
-    ");
-    $stmt->execute([$menu_item_id, $user_id, $comment]);
-    $newReviewId = $pdo->lastInsertId();
-    $fetchStmt = $pdo->prepare("
-        SELECT
-            r.id,
-            r.comment,
-            r.created_at,
-            r.user_id,
-            u.name AS reviewer_name
-        FROM reviews r
-        JOIN users u ON r.user_id = u.id
-        WHERE r.id = ?
-    ");
-    $fetchStmt->execute([$newReviewId]);
-    $newReview = $fetchStmt->fetch();
+    $reviewModel = new ReviewModel($pdo);
+    $newId       = $reviewModel->add($menu_item_id, $user_id, $comment);
+    $newReview   = $reviewModel->getById($newId);
 
     echo json_encode([
         'success' => true,

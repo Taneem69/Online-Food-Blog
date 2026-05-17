@@ -6,9 +6,9 @@ function getDB(): PDO
 
     if ($pdo === null) {
         $host = 'localhost';
-        $dbname = 'food_blog';
+        $dbname = 'online_food_blog';
         $username = 'root';
-        $password = '';
+        $password = '$Ohih502010';
 
         try {
             $pdo = new PDO(

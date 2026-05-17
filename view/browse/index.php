@@ -242,13 +242,13 @@ $areas = $areaStmt->fetchAll();
 <nav class="navbar">
     <strong>🍽 Online Food Blog</strong>
     <div>
-        <a href="/view/browse/index.php">Browse</a>
+        <a href="/ONLINE-FOOD-BLOG/view/browse/index.php">Browse</a>
         <?php if (isset($_SESSION['user_id'])): ?>
-            <a href="/view/profile.php">Profile</a>
+            <a href="/ONLINE-FOOD-BLOG/view/profile.php">Profile</a>
             <a href="/logout.php">Logout</a>
         <?php else: ?>
-            <a href="/view/auth/login.php">Login</a>
-            <a href="/view/auth/register.php">Register</a>
+            <a href="/ONLINE-FOOD-BLOG/view/auth/login.php">Login</a>
+            <a href="/ONLINE-FOOD-BLOG/view/auth/register.php">Register</a>
         <?php endif; ?>
     </div>
 </nav>
@@ -286,7 +286,6 @@ $areas = $areaStmt->fetchAll();
 
 <div class="main-content">
 
-    <!-- Loading spinner (shown during AJAX call) -->
     <div class="loading" id="loadingSpinner">
         <div class="spinner"></div>
         <p>Searching...</p>
@@ -317,7 +316,7 @@ $areas = $areaStmt->fetchAll();
                         <?= htmlspecialchars($r['short_background']) ?>
                     </p>
                     <a class="btn-view"
-                       href="/view/browse/restaurant.php?id=<?= $r['id'] ?>">
+                       href="/ONLINE-FOOD-BLOG/view/browse/restaurant.php?id=<?= $r['id'] ?>">
                         View Restaurant
                     </a>
                 </div>
@@ -335,7 +334,6 @@ $areas = $areaStmt->fetchAll();
 <script>
 let debounceTimer;
 
-// Listen for typing in the search box
 document.getElementById('searchInput')
     .addEventListener('input', function () {
         clearTimeout(debounceTimer);
@@ -356,18 +354,12 @@ function doSearch() {
     const q        = document.getElementById('searchInput').value.trim();
     const location = document.getElementById('locationInput').value.trim();
     const area     = document.getElementById('areaSelect').value;
-
-    // Build the URL for the API call
     const params = new URLSearchParams({ q, location, area });
-    const url    = `/api/search.php?${params}`;
+    const url    = `/ONLINE-FOOD-BLOG/api/search.php?${params}`;
 
-    // Show loading spinner
     showLoading(true);
-
-    // Make the AJAX request
     fetch(url)
         .then(function(response) {
-            // Check if the server responded correctly
             if (!response.ok) {
                 throw new Error('Server error: ' + response.status);
             }
@@ -410,7 +402,7 @@ function renderRestaurants(restaurants) {
                     </div>
                     <p class="card-bg">${escapeHtml(r.short_background)}</p>
                     <a class="btn-view"
-                       href="/view/browse/restaurant.php?id=${r.id}">
+                       href="/ONLINE-FOOD-BLOG/view/browse/restaurant.php?id=${r.id}">
                         View Restaurant
                     </a>
                 </div>
@@ -441,7 +433,7 @@ function renderMenuItems(menuItems) {
                         at ${escapeHtml(item.restaurant_name)}
                     </div>
                     <a class="btn-view"
-                       href="/view/browse/menu_item.php?id=${item.id}">
+                       href="/ONLINE-FOOD-BLOG/view/browse/menu_item.php?id=${item.id}">
                         View Item
                     </a>
                 </div>

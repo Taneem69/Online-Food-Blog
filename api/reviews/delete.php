@@ -1,9 +1,10 @@
 <?php
+
+ini_set('display_errors', 0);
 header('Content-Type: application/json');
 session_start();
-
 require_once '../../config/database.php';
-/** @var \PDO $pdo */
+require_once '../../models/ReviewModel.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -13,6 +14,7 @@ if (!isset($_SESSION['user_id'])) {
     ]);
     exit;
 }
+
 if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
     http_response_code(405);
     echo json_encode([
@@ -22,10 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
     exit;
 }
 
-// ─────────────────────────────────────────────────────────────
 $review_id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $user_id   = (int) $_SESSION['user_id'];
 
+// ── Step 4: Validate ──
 if ($review_id <= 0) {
     echo json_encode([
         'success' => false,
@@ -34,41 +36,31 @@ if ($review_id <= 0) {
     exit;
 }
 
-$checkStmt = $pdo->prepare("
-    SELECT id, user_id
-    FROM reviews
-    WHERE id = ?
-");
-$checkStmt->execute([$review_id]);
-$review = $checkStmt->fetch();
-
-if (!$review) {
-    echo json_encode([
-        'success' => false,
-        'error'   => 'Review not found.'
-    ]);
-    exit;
-}
-
-if ((int) $review['user_id'] !== $user_id) {
-    http_response_code(403);
-    echo json_encode([
-        'success' => false,
-        'error'   => 'You can only delete your own reviews.'
-    ]);
-    exit;
-}
-
 try {
-    $deleteStmt = $pdo->prepare("
-        DELETE FROM reviews
-        WHERE id = ? AND user_id = ?
-    ");
-    
-    $deleteStmt->execute([$review_id, $user_id]);
+    $reviewModel = new ReviewModel($pdo);
+    $review      = $reviewModel->findByIdAndUser($review_id, $user_id);
+
+    if (!$review) {
+        echo json_encode([
+            'success' => false,
+            'error'   => 'Review not found.'
+        ]);
+        exit;
+    }
+
+    if ((int)$review['user_id'] !== $user_id) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error'   => 'You can only delete your own reviews.'
+        ]);
+        exit;
+    }
+
+    $deleted = $reviewModel->delete($review_id, $user_id);
 
     echo json_encode([
-        'success' => true,
+        'success' => $deleted,
         'message' => 'Review deleted successfully.'
     ]);
 
