@@ -243,6 +243,114 @@ switch ($page) {
         redirect('index.php?page=home');
         break;
 
+case 'profile':
+    requireLogin();
+
+    $pageTitle = 'Profile';
+    $user = User::findById(getDB(), (int)$_SESSION['user_id']);
+
+    if (!$user) {
+        setFlash('flash_error', 'User not found.');
+        redirect('index.php?page=logout');
+    }
+
+    $errors = [];
+    $old = [
+        'name' => $user['name'],
+        'email' => $user['email']
+    ];
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        verifyCsrf();
+
+        $old['name'] = trim($_POST['name'] ?? '');
+        $old['email'] = trim($_POST['email'] ?? '');
+
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        $profilePicture = null;
+
+        if ($old['name'] === '') {
+            $errors['name'] = 'Name is required.';
+        }
+
+        if (!filter_var($old['email'], FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'Valid email is required.';
+        } elseif (User::emailExists(getDB(), $old['email'], (int)$user['id'])) {
+            $errors['email'] = 'This email is already used by another account.';
+        }
+
+        if (!empty($_FILES['profile_picture']['name'])) {
+            $file = $_FILES['profile_picture'];
+
+            $allowedTypes = [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png'
+            ];
+
+            $maxSize = 2 * 1024 * 1024;
+
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                $errors['profile_picture'] = 'Upload failed.';
+            } elseif ($file['size'] > $maxSize) {
+                $errors['profile_picture'] = 'Image must be 2 MB or less.';
+            } else {
+                $mimeType = mime_content_type($file['tmp_name']);
+
+                if (!isset($allowedTypes[$mimeType])) {
+                    $errors['profile_picture'] = 'Only JPG and PNG images are allowed.';
+                } else {
+                    $fileName = 'profile_' . $_SESSION['user_id'] . '_' . time() . '.' . $allowedTypes[$mimeType];
+                    $uploadDir = __DIR__ . '/public/uploads/profiles/';
+
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0777, true);
+                    }
+
+                    if (move_uploaded_file($file['tmp_name'], $uploadDir . $fileName)) {
+                        $profilePicture = 'uploads/profiles/' . $fileName;
+                    } else {
+                        $errors['profile_picture'] = 'Could not save uploaded image.';
+                    }
+                }
+            }
+        }
+
+        $wantsPasswordChange = $currentPassword !== '' || $newPassword !== '' || $confirmPassword !== '';
+
+        if ($wantsPasswordChange) {
+            if (!password_verify($currentPassword, $user['password_hash'])) {
+                $errors['current_password'] = 'Current password is incorrect.';
+            }
+
+            if (strlen($newPassword) < 8) {
+                $errors['new_password'] = 'New password must be at least 8 characters.';
+            }
+
+            if ($newPassword !== $confirmPassword) {
+                $errors['confirm_password'] = 'Passwords do not match.';
+            }
+        }
+
+        if (empty($errors)) {
+            User::updateProfile(getDB(), (int)$user['id'], $old['name'], $old['email'], $profilePicture);
+
+            if ($wantsPasswordChange) {
+                User::updatePassword(getDB(), (int)$user['id'], $newPassword);
+            }
+
+            $_SESSION['name'] = $old['name'];
+
+            setFlash('flash_success', 'Profile updated successfully.');
+            redirect('index.php?page=profile');
+        }
+    }
+
+    require __DIR__ . '/view/profile/edit.php';
+    break;
+
     default:
         require __DIR__ . '/view/partials/404.php';
         break;

@@ -612,3 +612,28 @@ input:focus, textarea:focus, select:focus {
         margin-top: 6px;
     }
 }
+
+.form-card.wide {
+    max-width: 700px;
+}
+
+.profile-img {
+    width: 130px;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #eee;
+    margin: 15px 0 25px;
+}
+
+.form-card hr {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 25px 0;
+}
+
+.form-card small {
+    display: block;
+    margin-top: 6px;
+    color: #777;
+}
