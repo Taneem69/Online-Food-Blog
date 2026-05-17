@@ -12,7 +12,7 @@
         exit();
     }
 
-    $post_id = $_POST['post_id'];
+    $post_id = (int)$_POST['post_id'];
     $comment = trim($_POST['comment']);
 
     if(empty($comment)){

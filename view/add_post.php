@@ -6,10 +6,19 @@
         exit();
     }
 
+    // Generate CSRF token
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = md5(uniqid(rand(), true));
+    }
+
     require_once('../model/foodExperienceModel.php');
 
     $restaurants = getAllRestaurantsForForm();
     $menu_items  = getAllMenuItemsForForm();
+
+    $error   = isset($_SESSION['error'])   ? $_SESSION['error']   : '';
+    $success = isset($_SESSION['success']) ? $_SESSION['success'] : '';
+    unset($_SESSION['error'], $_SESSION['success']);
 ?>
 
 <!DOCTYPE html>
@@ -28,9 +37,20 @@
 
     <div class="container">
         <h1>Add Food Experience Post</h1>
+
+        <?php if ($error): ?>
+            <p class="msg-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></p>
+        <?php endif; ?>
+
+        <?php if ($success): ?>
+            <p class="msg-success"><?php echo htmlspecialchars($success, ENT_QUOTES, 'UTF-8'); ?></p>
+        <?php endif; ?>
+
         <p id="msg" style="color:red;"></p>
 
         <form method="POST" action="../controller/addPostCheck.php" onsubmit="return validatePost()">
+
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
             <label>Title *</label><br>
             <input type="text" name="title" id="title" placeholder="Title"
