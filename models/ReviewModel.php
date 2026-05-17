@@ -114,8 +114,4 @@ class ReviewModel
         ");
         return $stmt->fetchAll();
     }
-<<<<<<< Updated upstream
 }
-=======
-}
->>>>>>> Stashed changes
