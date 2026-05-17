@@ -13,6 +13,12 @@
     }
 
     $post_id = (int)$_POST['post_id'];
+
+    if ($post_id <= 0) {
+        echo json_encode(["status" => "error", "message" => "Invalid post"]);
+        exit();
+    }
+    
     $comment = trim($_POST['comment']);
 
     if(empty($comment)){

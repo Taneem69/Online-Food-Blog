@@ -3,7 +3,8 @@
     session_start();
     
     if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
-        die("Unauthorized");
+        header("location: ../view/food_experience.php");
+        exit();
     }
     
     require_once('../model/adminModel.php');
